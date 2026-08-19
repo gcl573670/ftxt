@@ -36,8 +36,7 @@ async function getChannels(apiKey: string): Promise<Channel[]> {
 
   const chData = await gql<{ channels: Array<{ id: string; name: string; service: string }> }>(
     apiKey,
-    `query ($orgId: String!) { channels(input: { organizationId: $orgId }) { id name service } }`,
-    { orgId }
+    `query { channels(input: { organizationId: "${orgId}" }) { id name service } }`
   );
   return chData.channels ?? [];
 }
