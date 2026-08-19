@@ -64,6 +64,16 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
 
   for (const ch of channels) {
     try {
+      const input: Record<string, unknown> = {
+        text,
+        channelId: ch.id,
+        schedulingType: 'automatic',
+        mode: 'shareNow',
+      };
+      if (article.imageUrl) {
+        input.assets = [{ image: { url: article.imageUrl } }];
+      }
+
       const result = await gql<{
         createPost?: { post?: { id: string }; message?: string };
       }>(
@@ -74,14 +84,7 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
             ... on MutationError { message }
           }
         }`,
-        {
-          input: {
-            text,
-            channelId: ch.id,
-            schedulingType: 'automatic',
-            mode: 'shareNow',
-          },
-        }
+        { input }
       );
 
       const action = result.createPost;
