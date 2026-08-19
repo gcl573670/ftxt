@@ -12,7 +12,7 @@ export interface Config {
   tumblrAccessToken: string;
   tumblrAccessTokenSecret: string;
   tumblrBlogName: string;
-  bufferAccessToken: string;
+  bufferApiKey: string;
   rssFeedUrl: string;
   maxPostsPerRun: number;
   descriptionMaxLength: number;
@@ -32,7 +32,7 @@ export function loadConfig(): Config {
     tumblrAccessToken: env('TUMBLR_ACCESS_TOKEN'),
     tumblrAccessTokenSecret: env('TUMBLR_ACCESS_TOKEN_SECRET'),
     tumblrBlogName: env('TUMBLR_BLOG_NAME', 'p24-news'),
-    bufferAccessToken: env('BUFFER_ACCESS_TOKEN'),
+    bufferApiKey: env('BUFFER_API_KEY'),
     rssFeedUrl: env('RSS_FEED_URL', 'https://palugcr.live/rss.xml'),
     maxPostsPerRun: parseInt(env('MAX_POSTS_PER_RUN', '1'), 10),
     descriptionMaxLength: parseInt(env('DESCRIPTION_MAX_LENGTH', '250'), 10),

@@ -32,8 +32,8 @@ async function publishArticle(article: Article, cfg: ReturnType<typeof loadConfi
       })
     : (log.warn('Tumblr not configured'), false);
 
-  const bufferOk = cfg.bufferAccessToken
-    ? await publishToBuffer(cfg.bufferAccessToken, article).catch((e) => {
+  const bufferOk = cfg.bufferApiKey
+    ? await publishToBuffer(cfg.bufferApiKey, article).catch((e) => {
         log.error('Buffer error', { error: e.message }); return false;
       })
     : (log.warn('Buffer not configured'), false);

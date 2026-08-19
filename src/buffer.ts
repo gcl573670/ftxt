@@ -1,72 +1,99 @@
 import { log } from './logger.js';
 import type { Article } from './rss.js';
 
-const BUFFER_API = 'https://api.bufferapp.com/1';
+const BUFFER_API = 'https://api.buffer.com';
 
-interface BufferProfile {
+interface Channel {
   id: string;
+  name: string;
   service: string;
-  service_username: string;
 }
 
-export async function publishToBuffer(
-  accessToken: string,
-  article: Article
-): Promise<boolean> {
+async function gql<T>(apiKey: string, query: string, variables?: Record<string, unknown>): Promise<T> {
+  const resp = await fetch(BUFFER_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const json = await resp.json() as { data?: T; errors?: Array<{ message: string }> };
+  if (json.errors?.length) {
+    throw new Error(json.errors[0].message);
+  }
+  if (!json.data) throw new Error('No data in response');
+  return json.data;
+}
+
+async function getChannels(apiKey: string): Promise<Channel[]> {
+  const data = await gql<{ account: { organizations: Array<{ id: string }> } }>(
+    apiKey,
+    `query { account { organizations { id } } }`
+  );
+  const orgId = data.account?.organizations?.[0]?.id;
+  if (!orgId) throw new Error('No organization found');
+
+  const chData = await gql<{ channels: Array<{ id: string; name: string; service: string }> }>(
+    apiKey,
+    `query ($orgId: String!) { channels(input: { organizationId: $orgId }) { id name service } }`,
+    { orgId }
+  );
+  return chData.channels ?? [];
+}
+
+export async function publishToBuffer(apiKey: string, article: Article): Promise<boolean> {
   log.info('Publishing to Buffer', { title: article.title.slice(0, 50) });
 
-  // Verify token first
-  const userResp = await fetch(`${BUFFER_API}/user.json?access_token=${accessToken}`);
-  if (!userResp.ok) {
-    const body = await userResp.text();
-    log.error('Buffer auth failed - token may be invalid or expired', { status: userResp.status, body: body.slice(0, 200) });
+  let channels: Channel[];
+  try {
+    channels = await getChannels(apiKey);
+  } catch (err) {
+    log.error('Buffer auth/channels failed', { error: err instanceof Error ? err.message : String(err) });
     return false;
   }
-  const user = await userResp.json() as { success?: boolean; error?: string };
-  if (!user.success && user.error) {
-    log.error('Buffer auth error', { error: user.error });
-    return false;
-  }
-  log.info('Buffer authenticated OK');
 
-  // Fetch connected profiles
-  const profilesResp = await fetch(`${BUFFER_API}/profiles.json?access_token=${accessToken}`);
-  if (!profilesResp.ok) {
-    log.error('Buffer profiles fetch failed', { status: profilesResp.status });
+  if (channels.length === 0) {
+    log.warn('Buffer has no connected channels');
     return false;
   }
-  const profiles = (await profilesResp.json()) as BufferProfile[];
-  log.info('Buffer profiles found', { count: profiles.length });
 
+  log.info('Buffer channels found', { count: channels.length });
+
+  const text = formatBufferText(article);
   let allOk = true;
-  for (const profile of profiles) {
-    const text = formatBufferText(article);
-    const body = new URLSearchParams({
-      access_token: accessToken,
-      profile_ids: profile.id,
-      text,
-      ...(article.imageUrl ? { media: { photo: article.imageUrl } as unknown as string } : {}),
-    } as Record<string, string>);
 
-    if (article.imageUrl) {
-      body.set('media[photo]', article.imageUrl);
-    }
-
+  for (const ch of channels) {
     try {
-      const resp = await fetch(`${BUFFER_API}/updates/create.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      const data = await resp.json() as { success?: boolean; updates?: Array<{ id: string }> };
-      if (data.success) {
-        log.info('Buffer OK', { service: profile.service, username: profile.service_username });
+      const result = await gql<{
+        createPost?: { __typename: string; post?: { id: string }; message?: string };
+      }>(
+        apiKey,
+        `mutation ($input: CreatePostInput!) {
+          createPost(input: $input) {
+            ... on PostActionSuccess { post { id } }
+            ... on MutationError { message }
+          }
+        }`,
+        {
+          input: {
+            text,
+            channelId: ch.id,
+            schedulingType: 'automatic',
+            mode: 'addToQueue',
+          },
+        }
+      );
+
+      const action = result.createPost;
+      if (action?.__typename === 'PostActionSuccess') {
+        log.info('Buffer OK', { service: ch.service, name: ch.name, postId: action.post?.id });
       } else {
-        log.error('Buffer error', { service: profile.service, data });
+        log.error('Buffer post error', { service: ch.service, message: action?.message });
         allOk = false;
       }
     } catch (err) {
-      log.error('Buffer failed', { service: profile.service, error: err instanceof Error ? err.message : String(err) });
+      log.error('Buffer failed', { service: ch.service, error: err instanceof Error ? err.message : String(err) });
       allOk = false;
     }
   }
