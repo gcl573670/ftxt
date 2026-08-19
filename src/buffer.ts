@@ -65,7 +65,7 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
   for (const ch of channels) {
     try {
       const result = await gql<{
-        createPost?: { __typename: string; post?: { id: string }; message?: string };
+        createPost?: { post?: { id: string }; message?: string };
       }>(
         apiKey,
         `mutation ($input: CreatePostInput!) {
@@ -85,8 +85,8 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
       );
 
       const action = result.createPost;
-      if (action?.__typename === 'PostActionSuccess') {
-        log.info('Buffer OK', { service: ch.service, name: ch.name, postId: action.post?.id });
+      if (action?.post?.id) {
+        log.info('Buffer OK', { service: ch.service, name: ch.name, postId: action.post.id });
       } else {
         log.error('Buffer post error', { service: ch.service, response: JSON.stringify(result) });
         allOk = false;
