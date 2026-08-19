@@ -88,7 +88,7 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
       if (action?.__typename === 'PostActionSuccess') {
         log.info('Buffer OK', { service: ch.service, name: ch.name, postId: action.post?.id });
       } else {
-        log.error('Buffer post error', { service: ch.service, message: action?.message });
+        log.error('Buffer post error', { service: ch.service, response: JSON.stringify(result) });
         allOk = false;
       }
     } catch (err) {
