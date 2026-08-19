@@ -48,6 +48,6 @@ function formatFbMessage(a: Article): string {
   const hashtags = a.categories
     .map((c) => '#' + c.replace(/[^a-zA-Z0-9 ]/g, '').trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(''))
     .join(' ');
-  const parts = [desc, hashtags, a.link].filter(Boolean);
+  const parts = [a.title, desc, hashtags, a.link].filter(Boolean);
   return parts.join('\n\n');
 }

@@ -87,6 +87,11 @@ function formatBody(a: Article): string {
   return JSON.stringify({ title: a.title, url: a.link, tags });
 }
 
+function trimDesc(desc: string, max = 250): string {
+  if (!desc) return '';
+  return desc.length > max ? desc.slice(0, max - 3) + '...' : desc;
+}
+
 export async function publishToTumblr(
   article: Article,
   cfg: {
@@ -104,7 +109,7 @@ export async function publishToTumblr(
     const body: Record<string, string> = {
       type: 'photo',
       source: article.imageUrl,
-      caption: `${article.title}\n\n<a href="${article.link}">${article.link}</a>`,
+      caption: `${article.title}\n\n${trimDesc(article.description)}\n\n<a href="${article.link}">${article.link}</a>`,
       tags: article.categories.slice(0, 30).join(','),
       state: 'published',
     };
@@ -126,7 +131,7 @@ export async function publishToTumblr(
       type: 'link',
       title: article.title,
       url: article.link,
-      description: article.description || article.title,
+      description: `${article.title}\n\n${trimDesc(article.description)}`,
       tags: article.categories.slice(0, 30).join(','),
     };
     try {
@@ -146,7 +151,7 @@ export async function publishToTumblr(
     const body: Record<string, string> = {
       type: 'text',
       title: article.title,
-      body: `${article.description || article.title}\n\n<a href="${article.link}">${article.link}</a>`,
+      body: `${article.title}\n\n${trimDesc(article.description)}\n\n<a href="${article.link}">${article.link}</a>`,
       tags: article.categories.slice(0, 30).join(','),
     };
     try {

@@ -15,6 +15,20 @@ export async function publishToBuffer(
 ): Promise<boolean> {
   log.info('Publishing to Buffer', { title: article.title.slice(0, 50) });
 
+  // Verify token first
+  const userResp = await fetch(`${BUFFER_API}/user.json?access_token=${accessToken}`);
+  if (!userResp.ok) {
+    const body = await userResp.text();
+    log.error('Buffer auth failed - token may be invalid or expired', { status: userResp.status, body: body.slice(0, 200) });
+    return false;
+  }
+  const user = await userResp.json() as { success?: boolean; error?: string };
+  if (!user.success && user.error) {
+    log.error('Buffer auth error', { error: user.error });
+    return false;
+  }
+  log.info('Buffer authenticated OK');
+
   // Fetch connected profiles
   const profilesResp = await fetch(`${BUFFER_API}/profiles.json?access_token=${accessToken}`);
   if (!profilesResp.ok) {
@@ -66,5 +80,5 @@ function formatBufferText(a: Article): string {
     .join(' ');
   const parts = [a.title, a.link];
   if (hashtags) parts.push(hashtags);
-  return parts.join('\n\n');
+  return parts.join('\n');
 }
