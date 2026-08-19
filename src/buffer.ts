@@ -79,7 +79,7 @@ export async function publishToBuffer(apiKey: string, article: Article): Promise
             text,
             channelId: ch.id,
             schedulingType: 'automatic',
-            mode: 'addToQueue',
+            mode: 'shareNow',
           },
         }
       );
